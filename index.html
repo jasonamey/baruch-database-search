@@ -617,10 +617,16 @@
 
       return `I am researching: ${topic}
 
-Please review the following library databases and:
+Please review the following library databases and produce a structured report. Follow these instructions exactly:
+
 1. Recommend which databases would be most useful for this topic
-2. Rank them from most to least relevant — include each database's link as a single clickable markdown link [Database Name](url). Do not include the raw URL on a separate line or repeat the link in any way
-3. Suggest an exhaustive list of search keywords drawn directly from the topic "${topic}" — every meaningful word, phrase, and variation a researcher would actually type into a database search bar. Stick closely to the topic itself; do not expand into loosely related subjects
+2. Rank them from most to least relevant. For each database in your ranked list you must include:
+   - The database name as a single clickable markdown link [Database Name](url) — do not repeat the raw URL
+   - A 1–2 sentence explanation of why this database is useful for the topic
+   - A full restatement of the database's original description exactly as provided below
+3. After the ranked list, suggest an exhaustive list of search keywords drawn directly from "${topic}" — every meaningful word, phrase, and variation a researcher would actually type into a database search bar. Stick closely to the topic itself; do not expand into loosely related subjects
+
+Do not skip the description. Do not just list links. Each entry in the ranked list must be a complete record with name, explanation, and description.
 
 DATABASES:
 ${'─'.repeat(50)}
