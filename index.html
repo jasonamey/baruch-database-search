@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Newman Library — Database Finder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #0f2744;
+      --blue:   #1a4a8a;
+      --gold:   #e8a020;
+      --bg:     #f7f8fa;
+      --card:   #ffffff;
+      --border: #e2e6ed;
+      --text:   #1a1a2e;
+      --muted:  #6b7280;
+      --tag-bg: #eef2ff;
+      --tag:    #3b5bdb;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.06);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────────────────────────── */
+
+    header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+      padding: 3rem 2rem 4rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    header h1 {
+      position: relative;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+
+    header h1 span {
+      color: var(--gold);
+    }
+
+    header p {
+      position: relative;
+      margin-top: 0.5rem;
+      font-size: 1rem;
+      color: rgba(255,255,255,0.65);
+    }
+
+    /* ── Search bar (floated over header/content boundary) ────── */
+
+    .search-container {
+      max-width: 660px;
+      margin: -1.75rem auto 0;
+      padding: 0 1.5rem;
+      position: relative;
+      z-index: 10;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-box:focus-within {
+      border-color: var(--blue);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 0 0 3px rgba(26,74,138,0.12);
+    }
+
+    .search-icon {
+      padding: 0 0.85rem 0 1.1rem;
+      color: var(--muted);
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    #search-input {
+      flex: 1;
+      padding: 1rem 0.5rem;
+      font-size: 1rem;
+      border: none;
+      outline: none;
+      color: var(--text);
+      background: transparent;
+    }
+
+    #search-input::placeholder { color: #9ca3af; }
+
+    #clear-btn {
+      padding: 0 1rem;
+      height: 100%;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s;
+    }
+
+    #clear-btn:hover { color: var(--text); }
+
+    /* ── Main ─────────────────────────────────────────────────── */
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 4rem;
+    }
+
+    /* ── Status bar ───────────────────────────────────────────── */
+
+    #status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+      min-height: 2.2rem;
+    }
+
+    #status {
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+
+    #status strong { color: var(--text); }
+
+    #status .subject-pill {
+      display: inline-block;
+      background: var(--tag-bg);
+      color: var(--tag);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      margin: 0 0.15rem;
+    }
+
+    #status .fallback-note {
+      color: #b45309;
+    }
+
+    /* ── Export button ────────────────────────────────────────── */
+
+    #export-btn {
+      display: none;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--navy);
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+
+    #export-btn:hover {
+      background: var(--tag-bg);
+      border-color: var(--tag);
+      color: var(--tag);
+    }
+
+    #export-btn.copied {
+      background: #dcfce7;
+      border-color: #16a34a;
+      color: #15803d;
+    }
+
+    /* ── Export modal ─────────────────────────────────────────── */
+
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,39,68,0.55);
+      backdrop-filter: blur(3px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    #modal-overlay.open { display: flex; }
+
+    #modal {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+      width: 100%;
+      max-width: 560px;
+      padding: 1.75rem;
+    }
+
+    #modal h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 0.25rem;
+    }
+
+    #modal p.modal-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    #topic-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 0.95rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      color: var(--text);
+      margin-bottom: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    #topic-input:focus { border-color: var(--blue); }
+
+    .modal-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .btn-secondary {
+      padding: 0.6rem 1.1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .btn-secondary:hover { color: var(--text); border-color: #9ca3af; }
+
+    .btn-primary {
+      padding: 0.6rem 1.25rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: var(--navy);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-primary:hover { background: var(--blue); }
+
+    .btn-primary.copied {
+      background: #16a34a;
+    }
+
+    /* ── Result cards ─────────────────────────────────────────── */
+
+    #results {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .db-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.4rem;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+
+    .db-card:hover {
+      border-color: #c7d2fe;
+      box-shadow: var(--shadow);
+      transform: translateY(-1px);
+    }
+
+    .db-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .db-card a {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--navy);
+      text-decoration: none;
+      line-height: 1.3;
+    }
+
+    .db-card a:hover { color: var(--blue); text-decoration: underline; }
+
+    .db-card-arrow {
+      color: var(--muted);
+      font-size: 0.85rem;
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+      transition: color 0.15s;
+    }
+
+    .db-card:hover .db-card-arrow { color: var(--blue); }
+
+    .db-card p {
+      margin-top: 0.35rem;
+      font-size: 0.855rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    /* ── Intro / empty state ──────────────────────────────────── */
+
+    .intro-state {
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+
+    .intro-state .intro-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .intro-state h2 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .intro-state p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .suggestion-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-top: 1.5rem;
+    }
+
+    .chip {
+      padding: 0.4rem 0.9rem;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.83rem;
+      color: var(--navy);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      font-weight: 500;
+    }
+
+    .chip:hover {
+      background: var(--tag-bg);
+      border-color: var(--tag);
+      color: var(--tag);
+    }
+
+    .no-results-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .no-results-state a { color: var(--blue); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Newman Library <span>Database Finder</span></h1>
+    <p>Search by subject or keyword to find the right research database.</p>
+  </header>
+
+  <div class="search-container">
+    <div class="search-box">
+      <span class="search-icon">⌕</span>
+      <input
+        type="search"
+        id="search-input"
+        placeholder="Try: investing, nursing, civil rights, climate change…"
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Search databases by subject"
+      />
+      <button id="clear-btn" aria-label="Clear search">✕</button>
+    </div>
+  </div>
+
+  <main>
+    <div id="status-row">
+      <div id="status"></div>
+      <button id="export-btn">⬆ Export for AI</button>
+    </div>
+    <div id="results">
+      <div class="intro-state">
+        <div class="intro-icon">📚</div>
+        <h2>Find the right database for your research</h2>
+        <p>Type any subject, topic, or keyword. Results appear instantly — then export them to ask an AI for recommendations.</p>
+        <div class="suggestion-chips">
+          <span class="chip">finance</span>
+          <span class="chip">nursing</span>
+          <span class="chip">civil rights</span>
+          <span class="chip">climate change</span>
+          <span class="chip">psychology</span>
+          <span class="chip">Latin America</span>
+          <span class="chip">marketing</span>
+          <span class="chip">film</span>
+          <span class="chip">statistics</span>
+          <span class="chip">LGBTQ</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Export modal -->
+  <div id="modal-overlay">
+    <div id="modal">
+      <h2>Export for AI</h2>
+      <p class="modal-sub">
+        Enter your research topic. A ready-to-paste prompt will be copied to your clipboard — open Claude, ChatGPT, or any AI and paste it directly.
+      </p>
+      <input
+        type="text"
+        id="topic-input"
+        placeholder="e.g. the 2008 financial crisis, mental health in college students…"
+      />
+      <div class="modal-actions">
+        <button class="btn-secondary" id="modal-cancel">Cancel</button>
+        <button class="btn-primary" id="modal-copy">Copy prompt to clipboard</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { search } from './search.js';
+
+    const searchInput  = document.getElementById('search-input');
+    const clearBtn     = document.getElementById('clear-btn');
+    const statusEl     = document.getElementById('status');
+    const statusRow    = document.getElementById('status-row');
+    const resultsEl    = document.getElementById('results');
+    const exportBtn    = document.getElementById('export-btn');
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalCancel  = document.getElementById('modal-cancel');
+    const modalCopy    = document.getElementById('modal-copy');
+    const topicInput   = document.getElementById('topic-input');
+
+    let currentResults = [];
+
+    // ── Render ──────────────────────────────────────────────────
+
+    function renderResults(query) {
+      const q = query.trim();
+
+      if (!q) {
+        statusEl.innerHTML = '';
+        clearBtn.style.display = 'none';
+        exportBtn.style.display = 'none';
+        currentResults = [];
+        resultsEl.innerHTML = `
+          <div class="intro-state">
+            <div class="intro-icon">📚</div>
+            <h2>Find the right database for your research</h2>
+            <p>Type any subject, topic, or keyword. Results appear instantly — then export them to ask an AI for recommendations.</p>
+            <div class="suggestion-chips">
+              ${['finance','nursing','civil rights','climate change','psychology','Latin America','marketing','film','statistics','LGBTQ']
+                .map(s => `<span class="chip">${s}</span>`).join('')}
+            </div>
+          </div>`;
+        attachChips();
+        return;
+      }
+
+      clearBtn.style.display = 'flex';
+
+      const { results, matchedSubjects, isFallback } = search(q);
+      currentResults = results;
+
+      // Status
+      if (results.length === 0) {
+        statusEl.innerHTML = `No results for "<strong>${escapeHtml(q)}</strong>"`;
+        exportBtn.style.display = 'none';
+      } else if (isFallback) {
+        statusEl.innerHTML = `<span class="fallback-note">Keyword match — ${results.length} result${results.length !== 1 ? 's' : ''}</span>`;
+        exportBtn.style.display = 'flex';
+      } else {
+        const pills = matchedSubjects
+          .map(s => `<span class="subject-pill">${escapeHtml(s)}</span>`)
+          .join('');
+        statusEl.innerHTML = `<strong>${results.length}</strong> database${results.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${pills}`;
+        exportBtn.style.display = 'flex';
+      }
+
+      // Cards
+      if (results.length === 0) {
+        resultsEl.innerHTML = `
+          <div class="no-results-state">
+            No databases matched. Try a different term, or
+            <a href="https://guides.newman.baruch.cuny.edu/databases" target="_blank">browse all databases →</a>
+          </div>`;
+        return;
+      }
+
+      resultsEl.innerHTML = results
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(db => `
+          <div class="db-card">
+            <div class="db-card-header">
+              <a href="${db.url}" target="_blank" rel="noopener">${escapeHtml(db.name)}</a>
+              <span class="db-card-arrow">↗</span>
+            </div>
+            <p>${escapeHtml(db.description)}</p>
+          </div>
+        `).join('');
+    }
+
+    // ── Suggestion chips ─────────────────────────────────────────
+
+    function attachChips() {
+      document.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          searchInput.value = chip.textContent;
+          renderResults(chip.textContent);
+          searchInput.focus();
+        });
+      });
+    }
+
+    attachChips();
+
+    // ── Export modal ─────────────────────────────────────────────
+
+    exportBtn.addEventListener('click', () => {
+      topicInput.value = searchInput.value.trim();
+      modalCopy.textContent = 'Copy prompt to clipboard';
+      modalCopy.classList.remove('copied');
+      modalOverlay.classList.add('open');
+      topicInput.focus();
+      topicInput.select();
+    });
+
+    modalCancel.addEventListener('click', closeModal);
+
+    modalOverlay.addEventListener('click', e => {
+      if (e.target === modalOverlay) closeModal();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    function closeModal() {
+      modalOverlay.classList.remove('open');
+    }
+
+    modalCopy.addEventListener('click', () => {
+      const topic = topicInput.value.trim() || searchInput.value.trim() || 'my research topic';
+      const prompt = buildPrompt(topic, currentResults);
+      navigator.clipboard.writeText(prompt).then(() => {
+        modalCopy.textContent = '✓ Copied!';
+        modalCopy.classList.add('copied');
+        setTimeout(closeModal, 1200);
+      });
+    });
+
+    function buildPrompt(topic, dbs) {
+      const dbList = dbs
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(db => `${db.name}\n${db.description}\nURL: ${db.url}`)
+        .join('\n\n');
+
+      return `I am researching: ${topic}
+
+Please review the following library databases and:
+1. Recommend which databases would be most useful for this topic
+2. Rank them from most to least relevant — include each database's link as a single clickable markdown link [Database Name](url). Do not include the raw URL on a separate line or repeat the link in any way
+3. Suggest an exhaustive list of search keywords drawn directly from the topic "${topic}" — every meaningful word, phrase, and variation a researcher would actually type into a database search bar. Stick closely to the topic itself; do not expand into loosely related subjects
+
+DATABASES:
+${'─'.repeat(50)}
+${dbList}
+${'─'.repeat(50)}`;
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ── Events ────────────────────────────────────────────────────
+
+    searchInput.addEventListener('input', () => renderResults(searchInput.value));
+    searchInput.addEventListener('search', () => renderResults(searchInput.value));
+
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      searchInput.focus();
+      renderResults('');
+    });
+  </script>
+
+</body>
+</html>
